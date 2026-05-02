@@ -1,0 +1,38 @@
+from dataclasses import dataclass, replace
+
+@dataclass(frozen=True)
+class SurgeParameters:
+    base_fare: float
+    per_minute_rate: float
+    surge_multiplier: float
+
+    def update(self, **kwargs):
+        return replace(self, **kwargs)
+
+@dataclass(frozen=True)
+class AuctionParameters:
+    reserve_price: float
+    bid_increment: float
+
+    def update(self, **kwargs):
+        return replace(self, **kwargs)
+    
+@dataclass(frozen=True)
+class RiderParameters:
+    average_riders_per_minute: float # Poisson distribution parameter
+    
+    init_valuation_mean: float # Normal distribution parameter
+    init_valuation_std: float # Normal distribution parameter
+
+
+    def update(self, **kwargs):
+        return replace(self, **kwargs)
+    
+@dataclass(frozen=True)
+class Parameters:
+    surge: SurgeParameters
+    auction: AuctionParameters
+    rider: RiderParameters
+
+    def update(self, **kwargs):
+        return replace(self, **kwargs)
