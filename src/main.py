@@ -1,7 +1,8 @@
 
 class Simulation:
-    def __init__(self):
-        pass
+    def __init__(self, max_steps):
+        self.max_steps = max_steps
+        self.current_step = 0
 
     def start(self):
         print("Simulation started.")

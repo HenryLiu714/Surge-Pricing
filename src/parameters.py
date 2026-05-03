@@ -19,10 +19,11 @@ class AuctionParameters:
     
 @dataclass(frozen=True)
 class RiderParameters:
-    average_riders_per_minute: float # Poisson distribution parameter
-    
     init_valuation_mean: float # Normal distribution parameter
     init_valuation_std: float # Normal distribution parameter
+
+    dist_mean: float # Normal distribution parameter for travel time/distance
+    dist_std: float # Normal distribution parameter
 
 
     def update(self, **kwargs):
@@ -33,6 +34,9 @@ class Parameters:
     surge: SurgeParameters
     auction: AuctionParameters
     rider: RiderParameters
+
+    num_drivers: int
+    average_riders_per_minute: float # Poisson distribution parameter
 
     def update(self, **kwargs):
         return replace(self, **kwargs)
