@@ -12,7 +12,6 @@ class SurgeParameters:
 @dataclass(frozen=True)
 class AuctionParameters:
     reserve_price: float
-    bid_increment: float
 
     def update(self, **kwargs):
         return replace(self, **kwargs)
@@ -37,6 +36,7 @@ class Parameters:
 
     num_drivers: int
     average_riders_per_minute: float # Poisson distribution parameter
-
+    time_steps: int
+    
     def update(self, **kwargs):
         return replace(self, **kwargs)

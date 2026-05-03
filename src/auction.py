@@ -4,7 +4,7 @@ import numpy as np
 
 class AuctionSimulation:
     def __init__(self, params: Parameters):
-        self.params: AuctionParameters = params.surge
+        self.params: AuctionParameters = params.auction
         self.rider_params = params.rider
 
         self.num_drivers = params.num_drivers
@@ -25,7 +25,7 @@ class AuctionSimulation:
     def _price_generation(self, rider: Rider, opportunity_cost: float):
         # Get the price that would result in the opportunity cost
         # TODO
-        return self.params.base_fare + self.params.per_minute_rate * rider.travel_time
+        return rider.valuation
     
     def start(self):
         print("Auction Simulation started.")
