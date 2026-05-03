@@ -1,12 +1,10 @@
-from parameters import SurgeParameters, Parameters
-
+from parameters import AuctionParameters, Parameters
 from base import Driver, Rider
-
 import numpy as np
 
-class SurgeSimulation:
+class AuctionSimulation:
     def __init__(self, params: Parameters):
-        self.params: SurgeParameters = params.surge
+        self.params: AuctionParameters = params.surge
         self.rider_params = params.rider
 
         self.num_drivers = params.num_drivers
@@ -20,25 +18,17 @@ class SurgeSimulation:
         self.revenue_surplus = 0
         self.total_trips = 0
 
-    def _generate_unit_price(self):
-        # TODO - add surge pricing logic here
-        num_riders = len(self.riders)
-        num_drivers = len(self.available_drivers)
-
-        imbalance = num_riders / num_drivers if num_drivers > 0 else float('inf')
-
-        return self.params.per_minute_rate * max(1, self.params.surge_multiplier * imbalance)
+    def _opportunity_cost(self, rider: Rider):
+        # TODO - add more complex opportunity cost logic here, potentially incorporating driver preferences and expected future demand
+        return rider.valuation
     
-    def _generate_price(self, rider: Rider):
-        unit_price = self._generate_unit_price()
-
-        # TODO - add more complex price generation logic here, potentially incorporating rider valuation and distance
-
-        return self.params.base_fare + unit_price * rider.travel_time
-
-
+    def _price_generation(self, rider: Rider, opportunity_cost: float):
+        # Get the price that would result in the opportunity cost
+        # TODO
+        return self.params.base_fare + self.params.per_minute_rate * rider.travel_time
+    
     def start(self):
-        print("Surge Simulation started.")
+        print("Auction Simulation started.")
 
         # 1. Initialize drivers
         for _ in range(self.num_drivers):
@@ -46,7 +36,7 @@ class SurgeSimulation:
             self.available_drivers.append(new_driver)
 
     def next_step(self):
-        print("Moving to the next step of the surge simulation.")
+        print("Moving to the next step of the auction simulation.")
 
         # 1. Reduce all drivers time to completion by 1, and move any that are now free to the available_drivers set
         for driver in self.busy_drivers:
@@ -70,23 +60,26 @@ class SurgeSimulation:
 
         print(f"Riders: {[(r.id, r.valuation) for r in self.riders]}")
 
-        # 3. Match riders to drivers based on the surge pricing algorithm (not implemented yet)
+        # 3. Rank riders by opportunity cost
+        ranked_riders = sorted(self.riders, key=lambda r: self._opportunity_cost(r), reverse=True)
 
-        # TODO: Generate surge pricing scheme to calculate unit ride price based on current supply/demand imbalance, and match riders to drivers based on this price and their valuations
-        for rider in self.riders:
-            price = self._generate_price(rider)
+        # 4. Calculate the price for each rider, and match with drivers if the price is above the reserve price
+        num_available_drivers = len(self.available_drivers)
 
-            if price > rider.valuation:
-                continue # Rider decides not to take the trip at this price
+        for rider in ranked_riders[:num_available_drivers]:
+            price = self.params.reserve_price
+            if num_available_drivers < len(ranked_riders):
+                price = self._price_generation(rider, self._opportunity_cost(ranked_riders[num_available_drivers]))
 
-            # For now, just have drivers accept any rider that they are matched with, and match riders to drivers in order of arrival
-            if len(self.available_drivers) > 0:
-                driver = self.available_drivers.pop()
+            if price >= self.params.reserve_price:
+                # Match with a driver
+                driver = self.available_drivers.pop(0)
                 driver.accept(rider)
-
                 self.busy_drivers.append(driver)
-                self.riders.remove(rider)
 
-                self.total_trips += 1
+                # Update surpluses and total trips
                 self.social_surplus += rider.valuation - price
                 self.revenue_surplus += price
+                self.total_trips += 1
+
+                print(f"Rider {rider.id} matched with Driver {driver.id} at price {price}.")

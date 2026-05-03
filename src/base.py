@@ -5,7 +5,7 @@ class Rider:
     ID = 0
 
     def calculate_valuation(self, params: RiderParameters):
-        # TODO - add more complex valuation logic here
+        # TODO - add more complex valuation logic here, valuation dependent on demand
         return np.random.normal(params.init_valuation_mean, params.init_valuation_std)
 
     def __init__(self, params: RiderParameters):
