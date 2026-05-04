@@ -16,11 +16,11 @@ PARAM_DEFS = {
         ("surge_multiplier", "Surge Multiplier",     1.0,  5.0,  0.1,  1.5),
     ],
     "Auction": [
-        ("reserve_price",    "Reserve Price ($)",    0.0,  20.0, 0.5,  5.0),
+        ("reserve_price",    "Reserve Price ($)",    0.0,  20.0, 0.5,  1.0),
     ],
     "Rider": [
-        ("init_valuation_mean", "Valuation Mean ($)", 1.0, 30.0, 0.5, 10.0),
-        ("init_valuation_std",  "Valuation Std ($)",  0.1, 10.0, 0.1,  2.0),
+        ("init_valuation_mean", "Valuation Mean ($)", 1.0, 200.0, 0.5, 100.0),
+        ("init_valuation_std",  "Valuation Std ($)",  0.1, 40.0, 0.1,  10.0),
         ("dist_mean",           "Distance Mean (min)", 1.0, 30.0, 0.5, 10.0),
         ("dist_std",            "Distance Std (min)",  0.1, 10.0, 0.1,  2.0),
     ],

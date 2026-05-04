@@ -49,13 +49,16 @@ class SurgeSimulation:
         print("Moving to the next step of the surge simulation.")
 
         # 1. Reduce all drivers time to completion by 1, and move any that are now free to the available_drivers set
+        still_busy = []
         for driver in self.busy_drivers:
             driver.update_status(1)
             if driver.is_available():
                 self.available_drivers.append(driver)
-                self.busy_drivers.remove(driver) # Verify that this works
+            else:
+                still_busy.append(driver)
+        self.busy_drivers = still_busy
 
-        print(f"Available drivers: {len(self.available_drivers)}, Busy drivers: {len(self.busy_drivers)}")
+        print(f"Surge: Available drivers: {len(self.available_drivers)}, Busy drivers: {len(self.busy_drivers)}")
 
         # 2. Generate new riders based on the average_riders_per_minute parameter
         num_new_riders = max(0,np.random.poisson(self.average_riders_per_minute))
@@ -68,13 +71,12 @@ class SurgeSimulation:
             new_rider = Rider(self.rider_params)
             self.riders.append(new_rider)
 
-        print(f"Riders: {[(r.id, r.valuation) for r in self.riders]}")
-
         # 3. Match riders to drivers based on the surge pricing algorithm (not implemented yet)
 
         # TODO: Generate surge pricing scheme to calculate unit ride price based on current supply/demand imbalance, and match riders to drivers based on this price and their valuations
         for rider in self.riders:
             price = self._generate_price(rider)
+            print(f"Generated price for Rider {rider.id}: {price} (valuation: {rider.valuation})")
 
             if price > rider.valuation:
                 continue # Rider decides not to take the trip at this price

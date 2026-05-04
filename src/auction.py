@@ -20,12 +20,12 @@ class AuctionSimulation:
 
     def _opportunity_cost(self, rider: Rider):
         # TODO - add more complex opportunity cost logic here, potentially incorporating driver preferences and expected future demand
-        return rider.valuation
+        return rider.valuation / rider.travel_time
     
     def _price_generation(self, rider: Rider, opportunity_cost: float):
         # Get the price that would result in the opportunity cost
         # TODO
-        return rider.valuation
+        return opportunity_cost * rider.travel_time
     
     def start(self):
         print("Auction Simulation started.")
@@ -36,16 +36,16 @@ class AuctionSimulation:
             self.available_drivers.append(new_driver)
 
     def next_step(self):
-        print("Moving to the next step of the auction simulation.")
 
         # 1. Reduce all drivers time to completion by 1, and move any that are now free to the available_drivers set
+        still_busy = []
         for driver in self.busy_drivers:
             driver.update_status(1)
             if driver.is_available():
                 self.available_drivers.append(driver)
-                self.busy_drivers.remove(driver) # Verify that this works
-
-        print(f"Available drivers: {len(self.available_drivers)}, Busy drivers: {len(self.busy_drivers)}")
+            else:
+                still_busy.append(driver)
+        self.busy_drivers = still_busy
 
         # 2. Generate new riders based on the average_riders_per_minute parameter
         num_new_riders = max(0,np.random.poisson(self.average_riders_per_minute))
@@ -58,22 +58,21 @@ class AuctionSimulation:
             new_rider = Rider(self.rider_params)
             self.riders.append(new_rider)
 
-        print(f"Riders: {[(r.id, r.valuation) for r in self.riders]}")
-
         # 3. Rank riders by opportunity cost
         ranked_riders = sorted(self.riders, key=lambda r: self._opportunity_cost(r), reverse=True)
 
         # 4. Calculate the price for each rider, and match with drivers if the price is above the reserve price
         num_available_drivers = len(self.available_drivers)
+        eff_opp_cost = self._opportunity_cost(ranked_riders[num_available_drivers]) if num_available_drivers < len(ranked_riders) else self.params.reserve_price
 
         for rider in ranked_riders[:num_available_drivers]:
-            price = self.params.reserve_price
+            price = self._price_generation(rider, eff_opp_cost)
             if num_available_drivers < len(ranked_riders):
                 price = self._price_generation(rider, self._opportunity_cost(ranked_riders[num_available_drivers]))
 
             if price >= self.params.reserve_price:
                 # Match with a driver
-                driver = self.available_drivers.pop(0)
+                driver = self.available_drivers.pop()
                 driver.accept(rider)
                 self.busy_drivers.append(driver)
 
@@ -81,5 +80,3 @@ class AuctionSimulation:
                 self.social_surplus += rider.valuation - price
                 self.revenue_surplus += price
                 self.total_trips += 1
-
-                print(f"Rider {rider.id} matched with Driver {driver.id} at price {price}.")
