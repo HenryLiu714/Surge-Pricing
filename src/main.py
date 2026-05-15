@@ -4,13 +4,9 @@ from sim import Simulation
 if __name__ == "__main__":
     params = Parameters(
         surge=SurgeParameters(
-            base_fare=2.0,
-            per_minute_rate=0.5,
-            surge_multiplier=1.5
         ),
         auction=AuctionParameters(
-            reserve_price=5.0,
-            bid_increment=0.5
+            reserve_price=5.0
         ),
         rider=RiderParameters(
             init_valuation_mean=10,

@@ -3,6 +3,7 @@ from parameters import SurgeParameters, Parameters
 from base import Driver, Rider
 
 import numpy as np
+from scipy.stats import norm
 
 class SurgeSimulation:
     def __init__(self, params: Parameters):
@@ -21,20 +22,37 @@ class SurgeSimulation:
         self.total_trips = 0
 
     def _generate_unit_price(self):
-        # TODO - add surge pricing logic here
+        # Generates the market clearing unit price
         num_riders = len(self.riders)
         num_drivers = len(self.available_drivers)
 
-        imbalance = num_riders / num_drivers if num_drivers > 0 else float('inf')
+        mu_V = self.rider_params.init_valuation_mean
+        sigma_V = self.rider_params.init_valuation_std
 
-        return self.params.per_minute_rate * max(1, self.params.surge_multiplier * imbalance)
-    
+        mu_T = self.rider_params.dist_mean
+        sigma_T = self.rider_params.dist_std
+
+        # W = V/T, approximated as normal using delta method
+        mu_W = mu_V / mu_T
+        sigma_W = sigma_V / mu_T  # first-order approximation assuming T is low-variance
+
+        # p* = F_W^{-1}(1 - s / mu_R)
+        if num_riders == 0 or num_drivers >= num_riders:
+            p_star = 0.0  # or some minimum floor price
+        else:
+            ratio = num_drivers / num_riders
+            p_star = mu_W + sigma_W * norm.ppf(1 - ratio)
+
+        print(f"Generated unit price: {p_star} (num_drivers: {num_drivers}, num_riders: {num_riders})")
+
+        return max(p_star, 0)
+
     def _generate_price(self, rider: Rider):
         unit_price = self._generate_unit_price()
 
         # TODO - add more complex price generation logic here, potentially incorporating rider valuation and distance
 
-        return self.params.base_fare + unit_price * rider.travel_time
+        return unit_price * rider.travel_time
 
 
     def start(self):

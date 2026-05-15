@@ -2,10 +2,6 @@ from dataclasses import dataclass, replace
 
 @dataclass(frozen=True)
 class SurgeParameters:
-    base_fare: float
-    per_minute_rate: float
-    surge_multiplier: float
-
     def update(self, **kwargs):
         return replace(self, **kwargs)
 

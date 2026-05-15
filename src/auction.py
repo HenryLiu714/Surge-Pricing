@@ -65,12 +65,15 @@ class AuctionSimulation:
         num_available_drivers = len(self.available_drivers)
         eff_opp_cost = self._opportunity_cost(ranked_riders[num_available_drivers]) if num_available_drivers < len(ranked_riders) else self.params.reserve_price
 
-        for rider in ranked_riders[:num_available_drivers]:
+        for rider in ranked_riders:
+            if not self.available_drivers:
+                break
+            
             price = self._price_generation(rider, eff_opp_cost)
             if num_available_drivers < len(ranked_riders):
                 price = self._price_generation(rider, self._opportunity_cost(ranked_riders[num_available_drivers]))
 
-            if price >= self.params.reserve_price:
+            if price >= self.params.reserve_price and price <= rider.valuation:
                 # Match with a driver
                 driver = self.available_drivers.pop()
                 driver.accept(rider)
