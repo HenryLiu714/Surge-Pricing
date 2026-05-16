@@ -1,43 +1,55 @@
-from parameters import AuctionParameters, Parameters
+from parameters import Parameters
 from base import Driver, Rider
 import numpy as np
 
+
+def poly_cost(t: int, t_prime: float, coeffs: np.ndarray) -> float:
+    a00, a10, a01, a20, a11, a02 = coeffs
+    val = (a00
+           + a10 * t + a01 * t_prime + a11 * t*t_prime
+           + a20 * t**2 + a02* t_prime**2)
+    return max(val, val)
+
+
 class AuctionSimulation:
-    def __init__(self, params: Parameters):
-        self.params: AuctionParameters = params.auction
+    def __init__(self, params: Parameters, coeffs: np.ndarray):
+        self.params       = params.auction
         self.rider_params = params.rider
+        self.num_drivers  = params.num_drivers
+        self.avg_riders   = params.average_riders_per_minute
+        self.coeffs       = coeffs
 
-        self.num_drivers = params.num_drivers
-        self.average_riders_per_minute = params.average_riders_per_minute
+        self.available_drivers: list[Driver] = []
+        self.busy_drivers:      list[Driver] = []
+        self.waiting_riders:    list[Rider]  = []
 
-        self.riders: list[Rider] = [] # set of currently waiting riders
-        self.available_drivers: list[Driver] = [] # set of currently available drivers
-        self.busy_drivers: list[Driver] = [] # set of currently busy drivers
+        self.social_surplus  = 0.0
+        self.revenue_surplus = 0.0
+        self.total_trips     = 0
+        self.current_step    = 0
 
-        self.social_surplus = 0
-        self.revenue_surplus = 0
-        self.total_trips = 0
+    def _opportunity_cost(self, rider: Rider) -> float:
+        return poly_cost(self.current_step, rider.travel_time, coeffs=self.coeffs)
 
-    def _opportunity_cost(self, rider: Rider):
-        # TODO - add more complex opportunity cost logic here, potentially incorporating driver preferences and expected future demand
-        return rider.valuation / rider.travel_time
-    
-    def _price_generation(self, rider: Rider, opportunity_cost: float):
-        # Get the price that would result in the opportunity cost
-        # TODO
-        return opportunity_cost * rider.travel_time
-    
+    def _score(self, rider: Rider) -> float:
+        return rider.valuation - self._opportunity_cost(rider)
+
+    def _payment(self, rider: Rider, s_prime: float) -> float:
+        return s_prime + self._opportunity_cost(rider)
+
     def start(self):
-        print("Auction Simulation started.")
-
-        # 1. Initialize drivers
-        for _ in range(self.num_drivers):
-            new_driver = Driver()
-            self.available_drivers.append(new_driver)
+        self.available_drivers = [Driver() for _ in range(self.num_drivers)]
+        self.busy_drivers      = []
+        self.waiting_riders    = []
+        self.social_surplus    = 0.0
+        self.revenue_surplus   = 0.0
+        self.total_trips       = 0
+        self.current_step      = 0
 
     def next_step(self):
+        self.current_step += 1
 
-        # 1. Reduce all drivers time to completion by 1, and move any that are now free to the available_drivers set
+        # Free drivers whose trips have completed
         still_busy = []
         for driver in self.busy_drivers:
             driver.update_status(1)
@@ -47,39 +59,38 @@ class AuctionSimulation:
                 still_busy.append(driver)
         self.busy_drivers = still_busy
 
-        # 2. Generate new riders based on the average_riders_per_minute parameter
-        num_new_riders = max(0,np.random.poisson(self.average_riders_per_minute))
+        # Resample valuations of waiting riders and add new arrivals
+        for rider in self.waiting_riders:
+            rider.update_valuation(self.rider_params)
 
-        # Treat new riders + remaining riders as a single pool to be matched with drivers, and generate surge price based on this pool
-        remaining_riders = len(self.riders)
-        self.riders = []
+        num_new = np.random.poisson(self.avg_riders)
+        new_riders = [Rider(self.rider_params) for _ in range(num_new)]
+        riders = self.waiting_riders + new_riders
 
-        for _ in range(num_new_riders + remaining_riders):
-            new_rider = Rider(self.rider_params)
-            self.riders.append(new_rider)
+        # Score all riders
+        scored = [(self._score(r), r) for r in riders]
+        eligible = sorted(
+            [(s, r) for s, r in scored if s >= 0],
+            key=lambda x: x[0],
+            reverse=True
+        )
 
-        # 3. Rank riders by opportunity cost
-        ranked_riders = sorted(self.riders, key=lambda r: self._opportunity_cost(r), reverse=True)
+        k = len(self.available_drivers)
+        s_prime = eligible[k][0] if len(eligible) > k else 0.0
 
-        # 4. Calculate the price for each rider, and match with drivers if the price is above the reserve price
-        num_available_drivers = len(self.available_drivers)
-        eff_opp_cost = self._opportunity_cost(ranked_riders[num_available_drivers]) if num_available_drivers < len(ranked_riders) else self.params.reserve_price
+        # Allocate top k eligible riders
+        matched_ids = set()
+        for score, rider in eligible[:k]:
+            payment = self._payment(rider, s_prime)
 
-        for rider in ranked_riders:
-            if not self.available_drivers:
-                break
-            
-            price = self._price_generation(rider, eff_opp_cost)
-            if num_available_drivers < len(ranked_riders):
-                price = self._price_generation(rider, self._opportunity_cost(ranked_riders[num_available_drivers]))
+            driver = self.available_drivers.pop(0)
+            driver.accept(rider)
+            self.busy_drivers.append(driver)
 
-            if price >= self.params.reserve_price and price <= rider.valuation:
-                # Match with a driver
-                driver = self.available_drivers.pop()
-                driver.accept(rider)
-                self.busy_drivers.append(driver)
+            self.social_surplus  += rider.valuation - payment
+            self.revenue_surplus += payment
+            self.total_trips     += 1
+            matched_ids.add(rider.id)
 
-                # Update surpluses and total trips
-                self.social_surplus += rider.valuation - price
-                self.revenue_surplus += price
-                self.total_trips += 1
+        # All unmatched riders persist regardless of eligibility
+        self.waiting_riders = [r for r in riders if r.id not in matched_ids]

@@ -8,6 +8,7 @@ class SurgeParameters:
 @dataclass(frozen=True)
 class AuctionParameters:
     reserve_price: float
+    lambda_param: float
 
     def update(self, **kwargs):
         return replace(self, **kwargs)
